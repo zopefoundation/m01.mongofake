@@ -21,7 +21,7 @@ def read(*rnames):
 
 setup(
     name='m01.mongofake',
-    version='0.1.0',
+    version='0.1.1.dev0',
     author='Zope Foundation and Contributors',
     author_email='zope-dev@zope.org',
     description="Fake MongoDB implementation",
