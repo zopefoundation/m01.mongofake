@@ -2,7 +2,7 @@
 CHANGES
 =======
 
-0.1.0 (unreleased)
+0.1.0 (2012-05-22)
 ------------------
 
 - First independent release from m01.mongo.testing
