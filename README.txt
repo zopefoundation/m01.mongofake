@@ -1,2 +1,2 @@
-This package provides a FAKE mongoDB implementation.
-This is quite handy for testing.
+This package provides a FAKE mongoDB implementation and is quite handy for
+testing.

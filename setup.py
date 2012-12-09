@@ -21,7 +21,7 @@ def read(*rnames):
 
 setup(
     name='m01.mongofake',
-    version='0.1.1.dev0',
+    version='0.1.1',
     author='Zope Foundation and Contributors',
     author_email='zope-dev@zope.org',
     description="Fake MongoDB implementation",
@@ -45,10 +45,7 @@ setup(
     packages=find_packages('src'),
     include_package_data=True,
     package_dir={'': 'src'},
-    extras_require=dict(
-        test=[
-            'zope.testing',
-        ]),
+    extras_require=dict(),
     install_requires=[
         'setuptools',
         'pymongo',

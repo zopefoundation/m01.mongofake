@@ -11,6 +11,9 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
+"""
+$Id$
+"""
 __docformat__ = "reStructuredText"
 
 import copy
@@ -18,9 +21,9 @@ import re
 import types
 import pprint as pp
 
-from bson import objectid
-from bson import son
-from pymongo import cursor
+import bson.objectid
+import bson.son
+import pymongo.cursor 
 
 
 ###############################################################################
@@ -31,16 +34,26 @@ from pymongo import cursor
 
 # SON to dict converter
 def dictify(data):
-    """Recursive replace SON instance with plain a dict"""
+    """Recursive replace SON items with dict in the given data structure.
+    
+    Compared to the SON.to_dict method, this method will also handle tuples
+    and keep them intact.
+
+    """
+    if isinstance(data, bson.son.SON):
+        data = dict(data)
     if isinstance(data, dict):
         d = {}
-        for k, v in data.items():
+        for k, v in data.iteritems():
+            # replace nested SON items
             d[k] = dictify(v)
     elif isinstance(data, (tuple, list)):
         d = []
         for v in data:
+            # replace nested SON items
             d.append(dictify(v))
         if isinstance(data, tuple):
+            # keep tuples intact 
             d = tuple(d)
     else:
         d = data
@@ -81,7 +94,7 @@ class RENormalizer(object):
 
     def pprint(self, data):
         """Pretty print data"""
-        if isinstance(data, cursor.Cursor):
+        if isinstance(data, pymongo.cursor.Cursor):
             for item in data:
                 print self(item)
         else:
@@ -370,7 +383,7 @@ class FakeCollection(object):
         for doc in docs:
             oid = doc.get('_id')
             if oid is None:
-                oid = objectid.ObjectId()
+                oid = bson.objectid.ObjectId()
                 doc[u'_id'] = oid
             d = {}
             for k, v in list(doc.items()):
@@ -389,9 +402,9 @@ class FakeCollection(object):
                  _sock=None, _must_use_master=False):
         spec = spec_or_object_id
         if spec is None:
-            spec = son.SON()
-        if isinstance(spec, objectid.ObjectId):
-            spec = son.SON({"_id": spec})
+            spec = bson.son.SON()
+        if isinstance(spec, bson.objectid.ObjectId):
+            spec = bson.son.SON({"_id": spec})
 
         for result in self.find(spec, limit=-1, fields=fields,
             slave_okay=slave_okay, _sock=_sock,
@@ -404,7 +417,7 @@ class FakeCollection(object):
              sort=None,
              _sock=None, _must_use_master=False):
         if spec is None:
-            spec = son.SON()
+            spec = bson.son.SON()
 
         if not isinstance(spec, types.DictType):
             raise TypeError("spec must be an instance of dict")
@@ -435,7 +448,7 @@ class FakeCollection(object):
 
     def remove(self, spec_or_object_id, safe=False):
         spec = spec_or_object_id
-        if isinstance(spec, objectid.ObjectId):
+        if isinstance(spec, bson.objectid.ObjectId):
             spec = {"_id": spec}
 
         if not isinstance(spec, types.DictType):

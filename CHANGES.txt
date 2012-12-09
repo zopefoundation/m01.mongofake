@@ -2,10 +2,12 @@
 CHANGES
 =======
 
-0.1.1 (unreleased)
+0.1.1 (2012-12-10)
 ------------------
 
-- Nothing changed yet.
+- inproved dictify method, also convert single SON object to dict
+
+- add some initial tests
 
 
 0.1.0 (2012-05-22)
