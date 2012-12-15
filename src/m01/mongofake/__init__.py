@@ -344,8 +344,8 @@ class FakeCollection(object):
     def count(self):
         return len(self.docs)
 
-    def update(self, spec, document,
-               upsert=False, manipulate=False, safe=False, multi=False):
+    def update(self, spec, document, upsert=False, manipulate=False, safe=None,
+        multi=False, check_keys=True, **kwargs):
         if not isinstance(spec, types.DictType):
             raise TypeError("spec must be an instance of dict")
         if not isinstance(document, types.DictType):
@@ -365,18 +365,21 @@ class FakeCollection(object):
                         self.docs[key] = document
                     break
 
-    def save(self, to_save, manipulate=True, safe=False):
+    def save(self, to_save, manipulate=True, safe=None, check_keys=True,
+        **kwargs):
         if not isinstance(to_save, types.DictType):
             raise TypeError("cannot save object of type %s" % type(to_save))
 
         if "_id" not in to_save:
             return self.insert(to_save, manipulate, safe)
         else:
-            self.update({"_id": to_save["_id"]}, to_save, True, manipulate, safe)
+            self.update({"_id": to_save["_id"]}, to_save, upsert=True,
+                manipulate=manipulate, safe=safe, multi=multi,
+                check_keys=check_keys, **kwargs)
             return to_save.get("_id", None)
 
-    def insert(self, doc_or_docs, manipulate=True, safe=False, check_keys=True,
-        continue_on_error=True):
+    def insert(self, doc_or_docs, manipulate=True, safe=None, check_keys=True, 
+        continue_on_error=False, **kwargs):
         docs = doc_or_docs
         if isinstance(docs, types.DictType):
             docs = [docs]
@@ -399,7 +402,7 @@ class FakeCollection(object):
         pass
 
     def find_one(self, spec_or_object_id=None, fields=None, slave_okay=True,
-                 _sock=None, _must_use_master=False):
+        _sock=None, _must_use_master=False):
         spec = spec_or_object_id
         if spec is None:
             spec = bson.son.SON()
@@ -412,10 +415,9 @@ class FakeCollection(object):
             return result
         return None
 
-    def find(self, spec=None, fields=None, skip=0, limit=0,
-             slave_okay=True, timeout=True, snapshot=False, tailable=False,
-             sort=None,
-             _sock=None, _must_use_master=False):
+    def find(self, spec=None, fields=None, skip=0, limit=0, slave_okay=True,
+        timeout=True, snapshot=False, tailable=False, sort=None, _sock=None,
+        _must_use_master=False):
         if spec is None:
             spec = bson.son.SON()
 
@@ -423,7 +425,7 @@ class FakeCollection(object):
             raise TypeError("spec must be an instance of dict")
         if not isinstance(fields, (
             types.ListType, types.TupleType, types.NoneType)):
-            raise TypeError("fields must be an instance of list or tuple")
+            raise TypeError("fields must be an instance of list, tuple or None")
         if not isinstance(skip, types.IntType):
             raise TypeError("skip must be an instance of int")
         if not isinstance(limit, types.IntType):
@@ -446,8 +448,8 @@ class FakeCollection(object):
                       tailable, snapshot, sort=sort, _sock=_sock,
                       _must_use_master=_must_use_master)
 
-    def remove(self, spec_or_object_id, safe=False):
-        spec = spec_or_object_id
+    def remove(self, spec_or_id=None, safe=False, **kwargs):
+        spec = spec_or_id
         if isinstance(spec, bson.objectid.ObjectId):
             spec = {"_id": spec}
 
@@ -499,8 +501,8 @@ class FakeDatabase(object):
         return True
 
 
-class FakeMongoConnection(object):
-    """Fake MongoDB connection."""
+class FakeMongoClient(object):
+    """Fake MongoDB MongoClient."""
 
     def __init__(self):
         self.dbs = {}
@@ -530,22 +532,24 @@ class FakeMongoConnection(object):
     def __getitem__(self, name):
         return self.__getattr__(name)
 
-# single shared connection instance
-fakeMongoConnection = FakeMongoConnection()
+class FakeMongoConnection(FakeMongoClient):
+    """BBB: support old FakeMongoConnection class"""
+
+
+# single shared MongoClient instance
+fakeMongoClient = FakeMongoClient()
+
+# BBB: support
+fakeMongoConnection = fakeMongoClient
 
 
 class FakeMongoConnectionPool(object):
     """Fake mongodb connection pool."""
 
-    #maybe this is better:
-    #def __init__(self, host='localhost', port=27017,
-    #    connectionFactory=lambda host, port, tz=False: fakeMongoConnection,
-    #    logLevel=20):
-    #    self.connection = connectionFactory(host, port)
-
-    def __init__(self, host='localhost', port=27017,
-        connectionFactory=fakeMongoConnection, logLevel=20):
-        self.connection = fakeMongoConnection
+    def __init__(self, host='localhost', port=27017, max_pool_size=10,
+        tz_aware=True, _connect=True, logLevel=20, connectionFactory=None,
+        **kwargs):
+        self.connection = fakeMongoClient
 
     def disconnect(self):
         self.connection.disconnect()

@@ -2,10 +2,10 @@
 CHANGES
 =======
 
-0.1.2 (unreleased)
+0.2.0 (unreleased)
 ------------------
 
-- ...
+- feature: support pymongo 2.4 API and support new safe write concern
 
 
 0.1.1 (2012-12-10)
