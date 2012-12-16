@@ -17,7 +17,6 @@ $Id$
 __docformat__ = "reStructuredText"
 
 import os
-import unittest
 
 import pymongo
 
