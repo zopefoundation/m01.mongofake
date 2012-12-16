@@ -7,6 +7,9 @@ CHANGES
 
 - feature: support pymongo 2.4 API and support new safe write concern
 
+- include m01.stub for testing mongofake components and compare with real
+  pymongo output
+
 - implemented some basic tests and run them with m01.stub and m01.mongofake
   libraries
 
