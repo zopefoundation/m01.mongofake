@@ -2,4 +2,8 @@
 TODO
 ====
 
-- add some fake mongodb tests
+- implement more pymongo methods
+
+- implement m01.mongofake response similar then given from pymongo
+
+- add more tests and compare output from m01.mongofake and pymongo

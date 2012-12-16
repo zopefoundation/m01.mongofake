@@ -16,14 +16,18 @@ $Id$
 """
 __docformat__ = "reStructuredText"
 
+import calendar
 import copy
-import re
-import types
 import pprint as pp
+import re
+import struct
+import time
+import types
 
 import bson.objectid
 import bson.son
-import pymongo.cursor 
+import pymongo.cursor
+import pymongo.database
 
 
 ###############################################################################
@@ -116,6 +120,31 @@ reNormalizer = RENormalizer([
    (re.compile("datetime\([a-z0-9, ]+\)"), "datetime(...)"),
    (re.compile("object at 0x[a-zA-Z0-9]+"), "object at ..."),
    ])
+
+
+def getObjectId(secs=0):
+    """Knows how to generate similar ObjectId based on integer (counter)
+
+    Note: this method can get used if you need to define similar ObjectId
+    in a non persistent environment if need to bootstrap mongo containers.
+    """
+    time_tuple = time.gmtime(secs)
+    ts = calendar.timegm(time_tuple)
+    oid = struct.pack(">i", int(ts)) + "\x00" * 8
+    return bson.objectid.ObjectId(oid)
+
+
+def getObjectIdByTimeStr(tStr, format="%Y-%m-%d %H:%M:%S"):
+    """Knows how to generate similar ObjectId based on a time string
+
+    The time string format used by default is ``%Y-%m-%d %H:%M:%S``.
+    Use the current development time which could prevent duplicated
+    ObjectId. At least some kind of ;-)
+    """
+    time.strptime(tStr, "%Y-%m-%d %H:%M:%S")
+    ts = time.mktime(tStr)
+    oid = struct.pack(">i", int(ts)) + "\x00" * 8
+    return bson.objectid.ObjectId(oid)
 
 
 ###############################################################################
@@ -329,7 +358,7 @@ class FakeCollection(object):
 
     def __init__(self, database, name):
         self.database = database
-        self.name = name
+        self.name = unicode(name)
         self.full_name = '%s.%s' % (database, name)
         self.docs = OrderedData()
 
@@ -353,17 +382,36 @@ class FakeCollection(object):
         if not isinstance(upsert, types.BooleanType):
             raise TypeError("upsert must be an instance of bool")
 
+        existing = False
+        counter = 0
         for key, doc in list(self.docs.items()):
+            if (counter > 0 and not multi):
+                break 
             for k, v in spec.items():
                 if k in doc and v == doc[k]:
                     setData = document.get('$set')
                     if setData is not None:
                         # do a partial update based on $set data
                         for pk, pv in setData.items():
-                            doc[pk] = pv
+                            doc[unicode(pk)] = pv
+                        counter += 1
+                        existing = True
                     else:
-                        self.docs[key] = document
+                        d = {}
+                        for k, v in list(document.items()):
+                            # use unicode keys as mongodb does
+                            d[unicode(k)] = v
+                        self.docs[unicode(key)] = d
+                        existing = True
+                        counter += 1
                     break
+
+        cid = 42
+        ok = 1.0
+        err = None
+        return {u'updatedExisting': existing, u'connectionId': cid, u'ok': ok,
+                u'err': err, u'n': counter}
+
 
     def save(self, to_save, manipulate=True, safe=None, check_keys=True,
         **kwargs):
@@ -470,19 +518,35 @@ class FakeCollection(object):
             as_dict[field] = 1
         return as_dict
 
+    def __repr__(self):
+        return "%s(%r, %r)" % (self.__class__.__name__, self.database,
+            self.name)
+
 
 class FakeDatabase(object):
     """Fake mongoDB database."""
 
     def __init__(self, connection, name):
-        self.connection = connection
-        self.name = name
+        pymongo.database._check_name(name)
+        self.__name = unicode(name)
+        self.__connection = connection
         self.cols = {}
+
+    @property
+    def connection(self):
+        return self.__connection
+
+    @property
+    def name(self):
+        return self.__name
 
     def clear(self):
         for k, col in self.cols.items():
             col.clear()
             del self.cols[k]
+
+    def create_collection(self, name, **kw):
+        return True
 
     def collection_names(self):
         return list(self.cols.keys())
@@ -497,33 +561,163 @@ class FakeDatabase(object):
     def __getitem__(self, name):
         return self.__getattr__(name)
 
-    def create_collection(self, name, **kw):
-        return True
+    def __iter__(self):
+        return self
+
+    def next(self):
+        raise TypeError("'Database' object is not iterable")
+
+    def __call__(self, *args, **kwargs):
+        """This is only here so that some API misusages are easier to debug.
+        """
+        raise TypeError("'Database' object is not callable. If you meant to "
+                        "call the '%s' method on a '%s' object it is "
+                        "failing because no such method exists." % (
+                            self.__name, self.__connection.__class__.__name__))
+
+    def __repr__(self):
+        return "%s(%r, %r)" % (self.__class__.__name__, self.__connection,
+            self.__name)
 
 
 class FakeMongoClient(object):
     """Fake MongoDB MongoClient."""
 
-    def __init__(self):
-        self.dbs = {}
+    HOST = 'localhost'
+    POST = 27017
 
-    def __call__(self, host='localhost', port=27017, tz_aware=True):
+    __max_bson_size = 4 * 1024 * 1024
+
+    def __init__(self):
+        self.__dbs = {}
+        self.__host = None
+        self.__port = None
+        self.__max_pool_size = 10
+        self.__document_class = {}
+        self.__tz_aware = False
+        self.__nodes = []
+
+    @property
+    def dbs(self):
+        return self.__dbs
+
+    def __call__(self, host=None, port=None, max_pool_size=10,
+        document_class=dict, tz_aware=False, _connect=True, **kwargs):
+        if host is None:
+            host = self.HOST
+        if isinstance(host, basestring):
+            host = [host]
+        if port is None:
+            port = self.PORT
+        if not isinstance(port, int):
+            raise TypeError("port must be an instance of int")
+
+        self.__max_pool_size = max_pool_size
+        self.__document_class = document_class
+        self.__tz_aware = tz_aware
+
+        seeds = set()
+        username = None
+        password = None
+        db = None
+        opts = {}
+        for entity in host:
+            if "://" in entity:
+                if entity.startswith("mongodb://"):
+                    res = pymongo.uri_parser.parse_uri(entity, port)
+                    seeds.update(res["nodelist"])
+                    username = res["username"] or username
+                    password = res["password"] or password
+                    db = res["database"] or db
+                    opts = res["options"]
+                else:
+                    idx = entity.find("://")
+                    raise pymongo.errors.InvalidURI("Invalid URI scheme: %s" % (
+                        entity[:idx],))
+            else:
+                seeds.update(pymongo.uri_parser.split_hosts(entity, port))
+        if not seeds:
+            raise pymongo.errors.ConfigurationError(
+                "need to specify at least one host")
+
+        self.__nodes = seeds
+        self.__host = None
+        self.__port = None
+
+        if _connect:
+            # _connect=False is not supported yet because we need to implement
+            # some fake host, port setup concept first
+            try:
+                self.__find_node(seeds)
+            except pymongo.errors.AutoReconnect, e:
+                # ConnectionFailure makes more sense here than AutoReconnect
+                raise pymongo.errors.ConnectionFailure(str(e))
+
         return self
 
+    def __find_node(self, seeds=None):
+        # very simple find node implementation
+        errors = []
+        mongos_candidates = []
+        candidates = seeds or self.__nodes.copy()
+        for candidate in candidates:
+            node, ismaster, isdbgrid, res_time = self.__try_node(candidate)
+            return node
+
+        # couldn't find a suitable host.
+        self.disconnect()
+        raise pymongo.errors.AutoReconnect(', '.join(errors))
+
+    def __try_node(self, node):
+        self.disconnect()
+        self.__host, self.__port = node
+        # return node and some fake data
+        ismaster = True
+        isdbgrid = False
+        res_time = None
+        return node, ismaster, isdbgrid, res_time
+
+    @property
+    def host(self):
+        return self.__host
+
+    @property
+    def port(self):
+        return self.__port
+
+    @property
+    def tz_aware(self):
+        return self.__tz_aware
+
+    @property
+    def max_bson_size(self):
+        return self.__max_bson_size
+
+    @property
+    def nodes(self):
+        """List of all known nodes."""
+        return self.__nodes
+
     def drop_database(self, name):
-        db = self.dbs.get(name)
+        db = self.__dbs.get(name)
         if db is not None:
             db.clear()
-            del self.dbs[name]
+            del self.__dbs[name]
+
+    def database_names(self):
+        return list(self.__dbs.keys())
 
     def disconnect(self):
         pass
 
-    def database_names(self):
-        return list(self.dbs.keys())
+    def close(self):
+        self.disconnect()
+
+    def alive(self):
+        return True
 
     def __getattr__(self, name):
-        db = self.dbs.get(name)
+        db = self.__dbs.get(name)
         if db is None:
             db = FakeDatabase(self, name)
             self.dbs[name] = db
@@ -531,6 +725,26 @@ class FakeMongoClient(object):
 
     def __getitem__(self, name):
         return self.__getattr__(name)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.disconnect()
+
+    def __iter__(self):
+        return self
+
+    def next(self):
+        raise TypeError("'%s' object is not iterable" % self.__class__.__name__)
+
+    def __repr__(self):
+        if len(self.__nodes) == 1:
+            return "%s(%r, %r)" % (self.__class__.__name__, self.__host, self.__port)
+        else:
+            nodes = ["%s:%d" % n for n in self.__nodes]
+            return "%s(%r)" % (self.__class__.__name__, nodes)
+
 
 class FakeMongoConnection(FakeMongoClient):
     """BBB: support old FakeMongoConnection class"""
@@ -540,7 +754,7 @@ class FakeMongoConnection(FakeMongoClient):
 fakeMongoClient = FakeMongoClient()
 
 # BBB: support
-fakeMongoConnection = fakeMongoClient
+fakeMongoConnection = FakeMongoConnection()
 
 
 class FakeMongoConnectionPool(object):

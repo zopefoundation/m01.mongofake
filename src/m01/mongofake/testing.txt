@@ -1,0 +1,112 @@
+=======
+pymongo
+=======
+
+This test, if running with --all or level 2 will donaload and start a real
+mongodb instance on localhost:45017. See testing setup for more information.
+
+  >>> from m01.mongofake import getObjectId
+  >>> from m01.mongofake import pprint
+
+helper
+------
+
+We can simply use our test helper methods for get the current mongodb test
+client, database or collection.
+
+  >>> from m01.mongofake.testing import getTestClient
+  >>> getTestClient()
+  MongoClient('localhost', 45017)
+
+  >>> from m01.mongofake.testing import getTestDatabase
+  >>> getTestDatabase()
+  Database(MongoClient('localhost', 45017), u'm01_mongofake_database')
+
+  >>> from m01.mongofake.testing import getTestCollection
+  >>> getTestCollection()
+  Collection(Database(MongoClient('localhost', 45017), u'm01_mongofake_database'), u'test')
+
+
+pymongo
+-------
+
+Let's test some simple pymongo methods. Setup up some objects and get them
+back. First add a new collection:
+
+  >>> client = getTestClient()
+  >>> db = client.m01_mongofake_database
+  >>> collection = db.fruits
+  >>> data = {'_id': getObjectId(1),
+  ...         'name': u'apple',
+  ...         'color': u'green'} 
+  >>> oid = collection.insert(data)
+  >>> oid
+  ObjectId('000000010000000000000000')
+
+find_one:
+
+  >>> data = client.m01_mongofake_database.fruits.find_one({'_id': oid})
+  >>> pprint(data)
+  {u'_id': ObjectId('000000010000000000000000'),
+   u'color': u'green',
+   u'name': u'apple'}
+
+update:
+
+  >>> data['fresh'] = True
+  >>> client.m01_mongofake_database.fruits.update({'_id': oid}, data)
+  {u'updatedExisting': True, u'connectionId': 2, u'ok': 1.0, u'err': None, u'n': 1}
+
+find:
+
+  >>> for doc in client.m01_mongofake_database.fruits.find({'_id': oid}):
+  ...     pprint(doc)
+  {u'_id': ObjectId('000000010000000000000000'),
+   u'color': u'green',
+   u'fresh': True,
+   u'name': u'apple'}
+
+
+add more apples:
+
+  >>> data = {'_id': getObjectId(2),
+  ...         'name': u'apple',
+  ...         'color': u'red',
+  ...         'fresh': True,} 
+  >>> db.fruits.insert(data)
+  ObjectId('000000020000000000000000')
+
+find (all):
+
+  >>> for doc in client.m01_mongofake_database.fruits.find({'fresh': True}):
+  ...     pprint(doc)
+  {u'_id': ObjectId('000000010000000000000000'),
+   u'color': u'green',
+   u'fresh': True,
+   u'name': u'apple'}
+  {u'_id': ObjectId('000000020000000000000000'),
+   u'color': u'red',
+   u'fresh': True,
+   u'name': u'apple'}
+
+update multi (update response):
+
+  >>> data = {'$set': {'fresh': False}}
+  >>> client.m01_mongofake_database.fruits.update({'fresh': True}, data,
+  ...    multi=True)
+  {u'updatedExisting': True, u'connectionId': 2, u'ok': 1.0, u'err': None, u'n': 2}
+
+  >>> cursor = client.m01_mongofake_database.fruits.find({'fresh': False})
+  >>> cursor.count()
+  2
+
+  >>> for doc in client.m01_mongofake_database.fruits.find({'fresh': False}):
+  ...     pprint(doc)
+  {u'_id': ObjectId('000000010000000000000000'),
+   u'color': u'green',
+   u'fresh': False,
+   u'name': u'apple'}
+  {u'_id': ObjectId('000000020000000000000000'),
+   u'color': u'red',
+   u'fresh': False,
+   u'name': u'apple'}
