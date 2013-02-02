@@ -421,7 +421,7 @@ class FakeCollection(object):
             return self.insert(to_save, manipulate, safe)
         else:
             self.update({"_id": to_save["_id"]}, to_save, upsert=True,
-                manipulate=manipulate, safe=safe, multi=multi,
+                manipulate=manipulate, safe=safe,
                 check_keys=check_keys, **kwargs)
             return to_save.get("_id", None)
 
