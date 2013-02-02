@@ -7,6 +7,8 @@ CHANGES
 
 - added realistic FakeCollection.remove return values
 
+- bugfix around FakeCollection.save
+
 
 0.2.0 (2012-12-16)
 ------------------
