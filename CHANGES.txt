@@ -2,7 +2,7 @@
 CHANGES
 =======
 
-0.2.1 (unreleased)
+0.2.1 (2013-02-02)
 ------------------
 
 - added realistic FakeCollection.remove return values
