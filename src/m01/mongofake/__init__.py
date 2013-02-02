@@ -39,7 +39,7 @@ import pymongo.database
 # SON to dict converter
 def dictify(data):
     """Recursive replace SON items with dict in the given data structure.
-    
+
     Compared to the SON.to_dict method, this method will also handle tuples
     and keep them intact.
 
@@ -57,7 +57,7 @@ def dictify(data):
             # replace nested SON items
             d.append(dictify(v))
         if isinstance(data, tuple):
-            # keep tuples intact 
+            # keep tuples intact
             d = tuple(d)
     else:
         d = data
@@ -386,7 +386,7 @@ class FakeCollection(object):
         counter = 0
         for key, doc in list(self.docs.items()):
             if (counter > 0 and not multi):
-                break 
+                break
             for k, v in spec.items():
                 if k in doc and v == doc[k]:
                     setData = document.get('$set')
@@ -412,7 +412,6 @@ class FakeCollection(object):
         return {u'updatedExisting': existing, u'connectionId': cid, u'ok': ok,
                 u'err': err, u'n': counter}
 
-
     def save(self, to_save, manipulate=True, safe=None, check_keys=True,
         **kwargs):
         if not isinstance(to_save, types.DictType):
@@ -426,7 +425,7 @@ class FakeCollection(object):
                 check_keys=check_keys, **kwargs)
             return to_save.get("_id", None)
 
-    def insert(self, doc_or_docs, manipulate=True, safe=None, check_keys=True, 
+    def insert(self, doc_or_docs, manipulate=True, safe=None, check_keys=True,
         continue_on_error=False, **kwargs):
         docs = doc_or_docs
         if isinstance(docs, types.DictType):
@@ -505,8 +504,18 @@ class FakeCollection(object):
             raise TypeError("spec must be an instance of dict, not %s" %
                             type(spec))
 
+        response = {"serverUsed": "localhost:27017",
+                    "n": 0,
+                    "connectionId": 42,
+                    "wtime": 0,
+                    "err": None,
+                    "ok": 1.0}
+
         for doc in self.find(spec, fields=()):
             del self.docs[unicode(doc['_id'])]
+            response['n'] += 1
+
+        return response
 
     # helper methods
     def _fields_list_to_dict(self, fields):
@@ -770,4 +779,3 @@ class FakeMongoConnectionPool(object):
 
 # single shared connection pool instance
 fakeMongoConnectionPool = FakeMongoConnectionPool()
-
