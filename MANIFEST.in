@@ -1,3 +1,7 @@
-global-include *.txt
+include *.rst
 include *.txt
-recursive-include src *.txt
+include *.py
+include buildout.cfg
+include tox.ini
+
+recursive-include src *.py *.txt

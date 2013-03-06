@@ -12,15 +12,14 @@
 #
 ##############################################################################
 """
-$Id$
 """
-__docformat__ = "reStructuredText"
-
 import calendar
 import copy
 import pprint as pp
 import re
+import six
 import struct
+import sys
 import time
 import types
 
@@ -28,6 +27,18 @@ import bson.objectid
 import bson.son
 import pymongo.cursor
 import pymongo.database
+
+try:
+    unicode
+except NameError:
+    unicode = str
+
+def toUnicode(s):
+    try:
+        return unicode(s)
+    except:
+        pass
+    return s if isinstance(s, unicode) else s.decode()
 
 
 ###############################################################################
@@ -48,7 +59,7 @@ def dictify(data):
         data = dict(data)
     if isinstance(data, dict):
         d = {}
-        for k, v in data.iteritems():
+        for k, v in data.items():
             # replace nested SON items
             d[k] = dictify(v)
     elif isinstance(data, (tuple, list)):
@@ -90,7 +101,7 @@ class RENormalizer(object):
 
     def __call__(self, data):
         """Recursive normalize a SON instance, dict or text"""
-        if not isinstance(data, basestring):
+        if not isinstance(data, six.string_types):
             data = pp.pformat(dictify(data))
         for normalizer in self.transformers:
             data = normalizer(dictify(data))
@@ -100,9 +111,9 @@ class RENormalizer(object):
         """Pretty print data"""
         if isinstance(data, pymongo.cursor.Cursor):
             for item in data:
-                print self(item)
+                print(self(item))
         else:
-            print self(data)
+            print(self(data))
 
 
 # see testing.txt for a sample usage
@@ -130,7 +141,7 @@ def getObjectId(secs=0):
     """
     time_tuple = time.gmtime(secs)
     ts = calendar.timegm(time_tuple)
-    oid = struct.pack(">i", int(ts)) + "\x00" * 8
+    oid = struct.pack(">i", int(ts)) + b"\x00" * 8
     return bson.objectid.ObjectId(oid)
 
 
@@ -352,13 +363,15 @@ class FakeCursor(object):
             raise StopIteration
         return next
 
+    __next__ = next
+
 
 class FakeCollection(object):
     """Fake mongoDB collection"""
 
     def __init__(self, database, name):
         self.database = database
-        self.name = unicode(name)
+        self.name = toUnicode(name)
         self.full_name = '%s.%s' % (database, name)
         self.docs = OrderedData()
 
@@ -375,11 +388,11 @@ class FakeCollection(object):
 
     def update(self, spec, document, upsert=False, manipulate=False, safe=None,
         multi=False, check_keys=True, **kwargs):
-        if not isinstance(spec, types.DictType):
+        if not isinstance(spec, dict):
             raise TypeError("spec must be an instance of dict")
-        if not isinstance(document, types.DictType):
+        if not isinstance(document, dict):
             raise TypeError("document must be an instance of dict")
-        if not isinstance(upsert, types.BooleanType):
+        if not isinstance(upsert, bool):
             raise TypeError("upsert must be an instance of bool")
 
         existing = False
@@ -393,15 +406,15 @@ class FakeCollection(object):
                     if setData is not None:
                         # do a partial update based on $set data
                         for pk, pv in setData.items():
-                            doc[unicode(pk)] = pv
+                            doc[toUnicode(pk)] = pv
                         counter += 1
                         existing = True
                     else:
                         d = {}
                         for k, v in list(document.items()):
                             # use unicode keys as mongodb does
-                            d[unicode(k)] = v
-                        self.docs[unicode(key)] = d
+                            d[toUnicode(k)] = v
+                        self.docs[toUnicode(key)] = d
                         existing = True
                         counter += 1
                     break
@@ -414,7 +427,7 @@ class FakeCollection(object):
 
     def save(self, to_save, manipulate=True, safe=None, check_keys=True,
         **kwargs):
-        if not isinstance(to_save, types.DictType):
+        if not isinstance(to_save, dict):
             raise TypeError("cannot save object of type %s" % type(to_save))
 
         if "_id" not in to_save:
@@ -428,7 +441,7 @@ class FakeCollection(object):
     def insert(self, doc_or_docs, manipulate=True, safe=None, check_keys=True,
         continue_on_error=False, **kwargs):
         docs = doc_or_docs
-        if isinstance(docs, types.DictType):
+        if isinstance(docs, dict):
             docs = [docs]
         for doc in docs:
             oid = doc.get('_id')
@@ -438,8 +451,8 @@ class FakeCollection(object):
             d = {}
             for k, v in list(doc.items()):
                 # use unicode keys as mongodb does
-                d[unicode(k)] = v
-            self.docs[unicode(oid)] = d
+                d[toUnicode(k)] = v
+            self.docs[toUnicode(oid)] = d
 
         ids = [doc.get("_id", None) for doc in docs]
         return len(ids) == 1 and ids[0] or ids
@@ -468,22 +481,21 @@ class FakeCollection(object):
         if spec is None:
             spec = bson.son.SON()
 
-        if not isinstance(spec, types.DictType):
+        if not isinstance(spec, dict):
             raise TypeError("spec must be an instance of dict")
-        if not isinstance(fields, (
-            types.ListType, types.TupleType, types.NoneType)):
+        if not isinstance(fields, (list, tuple, type(None))):
             raise TypeError("fields must be an instance of list, tuple or None")
-        if not isinstance(skip, types.IntType):
+        if not isinstance(skip, int):
             raise TypeError("skip must be an instance of int")
-        if not isinstance(limit, types.IntType):
+        if not isinstance(limit, int):
             raise TypeError("limit must be an instance of int")
-        if not isinstance(slave_okay, types.BooleanType):
+        if not isinstance(slave_okay, bool):
             raise TypeError("slave_okay must be an instance of bool")
-        if not isinstance(timeout, types.BooleanType):
+        if not isinstance(timeout, bool):
             raise TypeError("timeout must be an instance of bool")
-        if not isinstance(snapshot, types.BooleanType):
+        if not isinstance(snapshot, bool):
             raise TypeError("snapshot must be an instance of bool")
-        if not isinstance(tailable, types.BooleanType):
+        if not isinstance(tailable, bool):
             raise TypeError("tailable must be an instance of bool")
 
         if fields is not None:
@@ -512,7 +524,7 @@ class FakeCollection(object):
                     "ok": 1.0}
 
         for doc in self.find(spec, fields=()):
-            del self.docs[unicode(doc['_id'])]
+            del self.docs[toUnicode(doc['_id'])]
             response['n'] += 1
 
         return response
@@ -537,7 +549,7 @@ class FakeDatabase(object):
 
     def __init__(self, connection, name):
         pymongo.database._check_name(name)
-        self.__name = unicode(name)
+        self.__name = toUnicode(name)
         self.__connection = connection
         self.cols = {}
 
@@ -614,7 +626,7 @@ class FakeMongoClient(object):
         document_class=dict, tz_aware=False, _connect=True, **kwargs):
         if host is None:
             host = self.HOST
-        if isinstance(host, basestring):
+        if isinstance(host, six.string_types):
             host = [host]
         if port is None:
             port = self.PORT
@@ -658,7 +670,7 @@ class FakeMongoClient(object):
             # some fake host, port setup concept first
             try:
                 self.__find_node(seeds)
-            except pymongo.errors.AutoReconnect, e:
+            except pymongo.errors.AutoReconnect as e:
                 # ConnectionFailure makes more sense here than AutoReconnect
                 raise pymongo.errors.ConnectionFailure(str(e))
 

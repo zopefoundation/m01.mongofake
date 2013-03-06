@@ -11,23 +11,14 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
+"""Testing Support
 """
-$Id$
-"""
-__docformat__ = "reStructuredText"
-
 import os
-
 import pymongo
-
-import m01.stub.testing
-
 import m01.mongofake
-
 
 # mongo db name used for testing
 TEST_DB_NAME = 'm01_mongofake_database'
-
 
 ###############################################################################
 #
@@ -84,6 +75,7 @@ def setUpStubMongo(test=None):
     host = 'localhost'
     port = 45017
     sandBoxDir = os.path.join(os.path.dirname(__file__), 'sandbox')
+    import m01.stub.testing
     m01.stub.testing.startMongoDBServer(host, port, sandBoxDir=sandBoxDir)
     # ensure that we use a a real MongoClient
     global _testClient
@@ -93,4 +85,5 @@ def setUpStubMongo(test=None):
 def tearDownStubMongo(test=None):
     """Tear down real mongodb"""
     sleep = 0.5
+    import m01.stub.testing
     m01.stub.testing.stopMongoDBServer(sleep)

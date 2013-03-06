@@ -34,7 +34,7 @@ pattern which is useable as a doctest checker.
   ... completed in 1.234 seconds.
   ... """
 
-  >>> print normalizer(text)
+  >>> print(normalizer(text))
   <BLANKLINE>
   <object object at ...>
   completed in ... seconds.
@@ -58,7 +58,7 @@ Now let's test some mongodb relevant stuff:
   ...    """Knows how to generate similar ObjectId based on integer (counter)"""
   ...    time_tuple = time.gmtime(secs)
   ...    ts = calendar.timegm(time_tuple)
-  ...    oid = struct.pack(">i", int(ts)) + "\x00" * 8
+  ...    oid = struct.pack(">i", int(ts)) + b"\x00" * 8
   ...    return ObjectId(oid)
 
   >>> oid = getObjectId(42)
@@ -100,7 +100,7 @@ As you can see our predefined reNormalizer will convert the values using our
 given patterns: 
 
   >>> import m01.mongofake
-  >>> print m01.mongofake.reNormalizer(data)
+  >>> print(m01.mongofake.reNormalizer(data))
   {'date': datetime.datetime(...),
    'dbref': DBRef('foo', 5, 'db'),
    'int': 42,
@@ -126,7 +126,7 @@ pprint
    'oid': ObjectId('...'),
    're': <_sre.SRE_Pattern object at ...>,
    'string': 'string',
-   'timestamp': Timestamp('...'),
+   'timestamp': Timestamp(...),
    'unicode': u'unicode',
    'utc': datetime(..., tzinfo=<bson.tz_util.FixedOffset ...>)}
 
@@ -140,8 +140,8 @@ dictify
   <class 'bson.son.SON'>
 
   >>> res = m01.mongofake.dictify(son)
-  >>> type(res)
-  <type 'dict'>
+  >>> type(res) is dict
+  True
 
   >>> m01.mongofake.pprint(res)
   {'date': datetime.datetime(2011, 5, 7, 1, 12),

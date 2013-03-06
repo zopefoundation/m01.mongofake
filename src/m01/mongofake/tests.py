@@ -12,10 +12,7 @@
 #
 ##############################################################################
 """
-$Id$
 """
-__docformat__ = "reStructuredText"
-
 import re
 import unittest
 import doctest
@@ -24,6 +21,23 @@ from zope.testing.renormalizing import RENormalizing
 
 import m01.mongofake.testing
 
+try:
+    import m01.stub
+except ImportError:
+    has_m01_stub = False
+else:
+    has_m01_stub = True
+
+PY_COMPAT = RENormalizing([
+    # Python 3 unicode removed the "u".
+    (re.compile("u('.*?')"),
+     r"\1"),
+    (re.compile('u(".*?")'),
+     r"\1"),
+    # Python 3 adds module.
+    (re.compile('datetime.datetime'),
+     r"datetime"),
+   ])
 
 CHECKER = RENormalizing([
    (re.compile('connectionId'), '...'),
@@ -48,16 +62,17 @@ def test_suite():
     # real mongo database tests using m01.stub using level 2 tests (--all)
     testNames = ['testing.txt',
                  ]
-    for name in testNames:
-        suite = unittest.TestSuite((
-            doctest.DocFileSuite(name,
-                setUp=m01.mongofake.testing.setUpStubMongo,
-                tearDown=m01.mongofake.testing.tearDownStubMongo,
-                optionflags=doctest.NORMALIZE_WHITESPACE|doctest.ELLIPSIS,
-                checker=CHECKER),
-            ))
-        suite.level = 2
-        append(suite)
+    if has_m01_stub:
+        for name in testNames:
+            suite = unittest.TestSuite((
+                doctest.DocFileSuite(name,
+                    setUp=m01.mongofake.testing.setUpStubMongo,
+                    tearDown=m01.mongofake.testing.tearDownStubMongo,
+                    optionflags=doctest.NORMALIZE_WHITESPACE|doctest.ELLIPSIS,
+                    checker=PY_COMPAT+CHECKER),
+                ))
+            suite.level = 2
+            append(suite)
 
     # fake mongo database tests using FakeMongoClient
     for name in testNames:
@@ -66,12 +81,14 @@ def test_suite():
                 setUp=m01.mongofake.testing.setUpFakeMongo,
                 tearDown=m01.mongofake.testing.tearDownFakeMongo,
                 optionflags=doctest.NORMALIZE_WHITESPACE|doctest.ELLIPSIS,
-                checker=FAKE_CHECKER),
+                checker=PY_COMPAT+FAKE_CHECKER),
         )
 
     # additional non mongodb tests
     append(
-        doctest.DocFileSuite('README.txt',
+        doctest.DocFileSuite(
+            'README.txt',
+            checker=PY_COMPAT,
             optionflags=doctest.NORMALIZE_WHITESPACE|doctest.ELLIPSIS),
     )
 
