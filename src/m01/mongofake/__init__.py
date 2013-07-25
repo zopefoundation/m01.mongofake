@@ -13,7 +13,6 @@
 ##############################################################################
 """
 """
-import calendar
 import copy
 import pprint as pp
 import re
@@ -139,10 +138,7 @@ def getObjectId(secs=0):
     Note: this method can get used if you need to define similar ObjectId
     in a non persistent environment if need to bootstrap mongo containers.
     """
-    time_tuple = time.gmtime(secs)
-    ts = calendar.timegm(time_tuple)
-    oid = struct.pack(">i", int(ts)) + b"\x00" * 8
-    return bson.objectid.ObjectId(oid)
+    return bson.objectid.ObjectId(("%08x" % secs) + "0" * 16)
 
 
 def getObjectIdByTimeStr(tStr, format="%Y-%m-%d %H:%M:%S"):
