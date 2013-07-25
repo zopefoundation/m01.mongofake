@@ -17,9 +17,7 @@ import copy
 import pprint as pp
 import re
 import six
-import struct
 import sys
-import time
 import types
 
 import bson.objectid
@@ -139,19 +137,6 @@ def getObjectId(secs=0):
     in a non persistent environment if need to bootstrap mongo containers.
     """
     return bson.objectid.ObjectId(("%08x" % secs) + "0" * 16)
-
-
-def getObjectIdByTimeStr(tStr, format="%Y-%m-%d %H:%M:%S"):
-    """Knows how to generate similar ObjectId based on a time string
-
-    The time string format used by default is ``%Y-%m-%d %H:%M:%S``.
-    Use the current development time which could prevent duplicated
-    ObjectId. At least some kind of ;-)
-    """
-    time.strptime(tStr, "%Y-%m-%d %H:%M:%S")
-    ts = time.mktime(tStr)
-    oid = struct.pack(">i", int(ts)) + "\x00" * 8
-    return bson.objectid.ObjectId(oid)
 
 
 ###############################################################################
