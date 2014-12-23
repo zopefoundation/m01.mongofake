@@ -54,8 +54,12 @@ find_one:
 update:
 
   >>> data['fresh'] = True
-  >>> client.m01_mongofake_database.fruits.update({'_id': oid}, data)
-  {u'updatedExisting': True, u'connectionId': 2, u'ok': 1.0, u'err': None, u'n': 1}
+  >>> pprint(client.m01_mongofake_database.fruits.update({'_id': oid}, data))
+  {u'connectionId': 2,
+   u'err': None,
+   u'n': 1,
+   u'ok': 1.0,
+   u'updatedExisting': True}
 
 find:
 
@@ -92,9 +96,13 @@ find (all):
 update multi (update response):
 
   >>> data = {'$set': {'fresh': False}}
-  >>> client.m01_mongofake_database.fruits.update({'fresh': True}, data,
-  ...    multi=True)
-  {u'updatedExisting': True, u'connectionId': 2, u'ok': 1.0, u'err': None, u'n': 2}
+  >>> pprint(client.m01_mongofake_database.fruits.update({'fresh': True}, data,
+  ...    multi=True))
+  {u'connectionId': 2,
+   u'err': None,
+   u'n': 2,
+   u'ok': 1.0,
+   u'updatedExisting': True}
 
   >>> cursor = client.m01_mongofake_database.fruits.find({'fresh': False})
   >>> cursor.count()
