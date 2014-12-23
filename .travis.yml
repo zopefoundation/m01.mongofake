@@ -1,9 +1,12 @@
 language: python
-python:
-    - 
+sudo: false
+env:
+    - TOXENV=py26
+    - TOXENV=py27
+    - TOXENV=py33
 install:
-    - pip install . --use-mirrors
+    - travis_retry pip install tox
 script:
-    - python setup.py test -q
+    - tox
 notifications:
     email: false
