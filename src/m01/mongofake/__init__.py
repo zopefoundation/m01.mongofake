@@ -26,6 +26,13 @@ import pymongo.cursor
 import pymongo.database
 
 try:
+    # pymongo 2.8
+    from pymongo.helpers import _check_database_name
+except ImportError:
+    # pymongo < 2.8
+    from pymongo.database import _check_name as _check_database_name
+
+try:
     unicode
 except NameError:
     unicode = str
@@ -529,7 +536,7 @@ class FakeDatabase(object):
     """Fake mongoDB database."""
 
     def __init__(self, connection, name):
-        pymongo.database._check_name(name)
+        _check_database_name(name)
         self.__name = toUnicode(name)
         self.__connection = connection
         self.cols = {}

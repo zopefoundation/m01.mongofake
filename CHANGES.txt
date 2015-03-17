@@ -2,10 +2,13 @@
 CHANGES
 =======
 
-1.0.1 (unreleased)
+
+1.0.1 (2015-03-17)
 ------------------
 
-- Nothing changed yet.
+- bugfix: reflect changes in pymongo > 2.8.0. The dta basename checker method
+  _check_name method was moved from pymongo.database to pymongo.helpers. Make
+  import work for all pymongo versions.
 
 
 1.0.0 (2013-03-06)

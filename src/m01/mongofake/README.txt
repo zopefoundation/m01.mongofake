@@ -16,7 +16,7 @@ RENormalizer
 
 The RENormalizer is able to normalize text and produce comparable output. You
 can setup the RENormalizer with a list of input, output expressions. This is
-usefull if you dump mongodb data which contains dates or other not so simple 
+usefull if you dump mongodb data which contains dates or other not so simple
 reproducable data. Such a dump result can get normalized before the unit test
 will compare the output. Also see zope.testing.renormalizing for the same
 pattern which is useable as a doctest checker.
@@ -97,7 +97,7 @@ reNormalizer
 ------------
 
 As you can see our predefined reNormalizer will convert the values using our
-given patterns: 
+given patterns:
 
   >>> import m01.mongofake
   >>> print(m01.mongofake.reNormalizer(data))
@@ -155,3 +155,14 @@ dictify
    'timestamp': Timestamp(4, 13),
    'unicode': u'unicode',
    'utc': datetime.datetime(2011, 5, 7, 1, 12, tzinfo=<bson.tz_util.FixedOffset object at ...>)}
+
+
+getObjectId
+-----------
+
+The mthod getObjectId knows how to generate similar ObjectId based on an
+integer. This method can get used if you need to define similar ObjectId in a
+non persistent environment if need to bootstrap mongo containers.
+
+  >>> m01.mongofake.getObjectId(42)
+  ObjectId('0000002a0000000000000000')
